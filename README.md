@@ -98,7 +98,7 @@ Example placeholders:
 
 🌆 Today’s Weather
 
-![Today Weather](./screenshots/today.png)
+![Today Weather](./screenshots/Today.png)
 
 ❌ Error Message
 

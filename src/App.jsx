@@ -3,57 +3,109 @@ import WeatherSearch from "./components/WeatherSearch.jsx";
 import WeatherCard from "./components/WeatherCard.jsx";
 
 const API_BASE_URL = "https://api.openweathermap.org/data/2.5/weather";
+const FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
 
+// change to true only if you want to test with local JSON
 const USE_LOCAL_JSON = false;
 
 function App() {
   const [searchTerm, setSearchTerm] = useState("Toronto");
   const [city, setCity] = useState("Toronto");
   const [weatherData, setWeatherData] = useState(null);
+  const [forecastDays, setForecastDays] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
   const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
-
 
   useEffect(() => {
     if (!city) return;
     fetchWeather(city);
   }, [city]);
 
+  const processForecast = (forecastJson) => {
+    // forecastJson.list is 3-hour steps; group by date
+    const byDate = {};
+    forecastJson.list.forEach((item) => {
+      const date = item.dt_txt.split(" ")[0]; // "YYYY-MM-DD"
+      if (!byDate[date]) byDate[date] = [];
+      byDate[date].push(item);
+    });
+
+    const dates = Object.keys(byDate).sort();
+    if (dates.length === 0) return [];
+
+    // skip the first date (today, we show as "big" card) and take next 5
+    const nextDates = dates.slice(1, 6);
+
+    return nextDates.map((date) => {
+      const bucket = byDate[date];
+      const mid = Math.floor(bucket.length / 2);
+      const sample = bucket[mid];
+
+      const d = new Date(date);
+      const weekdayShort = d.toLocaleDateString(undefined, {
+        weekday: "short",
+      });
+
+      return {
+        date,
+        weekdayShort,
+        temp: sample.main.temp,
+        iconCode: sample.weather?.[0]?.icon,
+        description: sample.weather?.[0]?.description,
+      };
+    });
+  };
+
   const fetchWeather = async (cityName) => {
     try {
       setIsLoading(true);
       setError("");
       setWeatherData(null);
-
-      let response;
+      setForecastDays([]);
 
       if (USE_LOCAL_JSON) {
-        
-        response = await fetch("/weather_api_output.json");
-      } else {
-       
-        const url = `${API_BASE_URL}?q=${encodeURIComponent(
-          cityName
-        )}&appid=${apiKey}&units=metric`;
-
-        response = await fetch(url);
+        // local sample file – only current weather, no forecast
+        const response = await fetch("/weather_api_output.json");
+        if (!response.ok) {
+          throw new Error("Failed to load local weather data.");
+        }
+        const data = await response.json();
+        setWeatherData(data);
+        setForecastDays([]); // no forecast from local file
+        return;
       }
 
-      if (!response.ok) {
-        if (response.status === 404) {
+      const currentUrl = `${API_BASE_URL}?q=${encodeURIComponent(
+        cityName
+      )}&appid=${apiKey}&units=metric`;
+
+      const forecastUrl = `${FORECAST_URL}?q=${encodeURIComponent(
+        cityName
+      )}&appid=${apiKey}&units=metric`;
+
+      const [currentRes, forecastRes] = await Promise.all([
+        fetch(currentUrl),
+        fetch(forecastUrl),
+      ]);
+
+      if (!currentRes.ok) {
+        if (currentRes.status === 404) {
           throw new Error("City not found. Please try again.");
         }
-        throw new Error("Failed to fetch weather data.");
+        throw new Error("Failed to fetch current weather.");
       }
 
-      const data = await response.json();
+      if (!forecastRes.ok) {
+        throw new Error("Failed to fetch forecast data.");
+      }
 
-  
-      setWeatherData(data);
+      const currentData = await currentRes.json();
+      const forecastJson = await forecastRes.json();
 
-    
+      setWeatherData(currentData);
+      setForecastDays(processForecast(forecastJson));
     } catch (err) {
       setError(err.message || "Something went wrong.");
     } finally {
@@ -70,8 +122,8 @@ function App() {
     <div className="app">
       <div className="app-container">
         <header className="app-header">
-          <h1>Weather Now</h1>
-          <p>Check current weather for any city</p>
+          <h1>Weather Forecast</h1>
+          <p>Today&apos;s weather and the next 5 days</p>
         </header>
 
         <WeatherSearch
@@ -94,6 +146,7 @@ function App() {
             iconCode={weatherData.weather?.[0]?.icon}
             humidity={weatherData.main?.humidity}
             windSpeed={weatherData.wind?.speed}
+            forecastDays={forecastDays}
           />
         )}
 
@@ -110,7 +163,7 @@ function App() {
               rel="noreferrer"
             >
               OpenWeatherMap
-            </a>{" "}
+            </a>
             {USE_LOCAL_JSON && " (using local sample JSON for this build)"}
           </small>
         </footer>

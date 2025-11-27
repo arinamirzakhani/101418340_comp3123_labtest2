@@ -5,7 +5,6 @@ import WeatherCard from "./components/WeatherCard.jsx";
 const API_BASE_URL = "https://api.openweathermap.org/data/2.5/weather";
 const FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
 
-// change to true only if you want to test with local JSON
 const USE_LOCAL_JSON = false;
 
 function App() {
@@ -24,10 +23,10 @@ function App() {
   }, [city]);
 
   const processForecast = (forecastJson) => {
-    // forecastJson.list is 3-hour steps; group by date
+    
     const byDate = {};
     forecastJson.list.forEach((item) => {
-      const date = item.dt_txt.split(" ")[0]; // "YYYY-MM-DD"
+      const date = item.dt_txt.split(" ")[0]; 
       if (!byDate[date]) byDate[date] = [];
       byDate[date].push(item);
     });
@@ -35,7 +34,7 @@ function App() {
     const dates = Object.keys(byDate).sort();
     if (dates.length === 0) return [];
 
-    // skip the first date (today, we show as "big" card) and take next 5
+    
     const nextDates = dates.slice(1, 6);
 
     return nextDates.map((date) => {
@@ -66,14 +65,14 @@ function App() {
       setForecastDays([]);
 
       if (USE_LOCAL_JSON) {
-        // local sample file – only current weather, no forecast
+       
         const response = await fetch("/weather_api_output.json");
         if (!response.ok) {
           throw new Error("Failed to load local weather data.");
         }
         const data = await response.json();
         setWeatherData(data);
-        setForecastDays([]); // no forecast from local file
+        setForecastDays([]); 
         return;
       }
 

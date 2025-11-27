@@ -1,6 +1,4 @@
 
-/* eslint-disable react/prop-types */
-
 function WeatherCard({
   cityName,
   country,
